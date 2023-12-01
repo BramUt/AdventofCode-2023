@@ -1,0 +1,10 @@
+zero0
+1one
+two2
+3three
+four
+5fiveight
+six6
+7seven
+eight8
+9nine

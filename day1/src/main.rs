@@ -1,40 +1,43 @@
 use std::fs;
 use std::env;
+use regex::Regex;
+
+fn get_num(num_str: &str) -> i32 {
+    match num_str {
+        "0" | "zero" => 0,
+        "1" | "one" => 1,
+        "2" | "two" => 2,
+        "3" | "three" => 3,
+        "4" | "four" => 4,
+        "5" | "five" => 5,
+        "6" | "six" => 6,
+        "7" | "seven" => 7,
+        "8" | "eight" => 8,
+        "9" | "nine" => 9,
+        _ => panic!("Something went wrong: {}", num_str)
+    }
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file_name = &args[1];
     let file_content = fs::read_to_string(file_name).unwrap();
 
-    let mut numbers: Vec<i32> = Vec::new();
-    // println!("{}", file_content);
+    let re = Regex::new(r"([0-9]|one|two|three|four|five|six|seven|eight|nine)").unwrap();
+
+    let mut numbers: Vec<u64> = Vec::new();
     for line in file_content.lines() {
-        let mut n1: Option<char> = None;
-        let mut n2: Option<char> = None;
-        // Forward loop for first digit.
-        for c in line.chars() {
-            if c.is_numeric(){
-                n1 = Some(c);
-                break;
-            }
-        }
-        // Reverse loop for the last digit.
-        for c in line.chars().rev() {
-            if c.is_numeric(){
-                n2 = Some(c);
-                break
-            }
-        }
-        if n1.is_some() && n2.is_some() {
-            let number = format!("{}{}", n1.unwrap(), n2.unwrap());
-            // let t_int: i32 = number.parse().unwrap();
-            // numbers.push(t_int);
-            // println!("{} {} {} {}", n1.unwrap(), n2.unwrap(), t_int, line)
-            numbers.push(number.parse().unwrap());
-        } else {
-            println!("Something went wrong :/");
-            break
-        }
+
+        let matches: Vec<_> = re.find_iter(line).map(|m| m.as_str()).collect();
+        println!("{} {}", line, matches.join(", "));
+
+        let n1 = get_num(&matches[0]);
+        let n2 = get_num(&matches.last().unwrap());
+        println!("{} {}", n1, n2);
+        let number = format!("{}{}", n1, n2);
+        println!("{}", number);
+        numbers.push(number.parse().unwrap());
+    
     }
-    println!("Final number: {}", numbers.iter().sum::<i32>())
+    println!("Final number: {}", numbers.iter().sum::<u64>())
 }
