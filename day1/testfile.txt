@@ -1,4 +1,3 @@
-zero0
 1one
 two2
 3three
