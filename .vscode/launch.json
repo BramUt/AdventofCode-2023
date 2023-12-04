@@ -14,14 +14,14 @@
                     "--lib"
                 ]
             },
-            "args": []
+            "args": ["sampledata.txt"]
         },
         {
             "type": "lldb",
             "request": "launch",
             "name": "Debug",
             "program": "${workspaceFolder}/<executable file>",
-            "args": ["--", "sampledata.txt"],
+            "args": ["sampledata.txt"],
             "cwd": "${workspaceFolder}"
         }
     ]
