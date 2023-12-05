@@ -3,28 +3,13 @@ use std::env;
 use std::fs;
 use std::str::Lines;
 
-#[derive(Clone)]
-struct MappedRange {
-    source_start: i128,
-    dest_start: i128,
-    length: i128
-}
+mod structs;
+use crate::structs::{ValueRange, MappedRange};
 
-impl MappedRange {
-    fn num_in_source_range(&self, s: i128) -> bool {
-        s >= self.source_start && s < self.source_start + self.length
-    }
-
-    fn get_mapped_value(&self, s: i128) -> i128 {
-        let diff = self.dest_start - self.source_start;
-        s + diff
-    }
-}
 
 struct ElfMap {
     source: String,
     dest: String,
-    // map: HashMap<u32, u32>
     mapped_ranges: Vec<MappedRange>
 }
 
@@ -34,15 +19,10 @@ impl ElfMap {
             source: source.to_owned(),
             dest: dest.to_owned(),
             mapped_ranges: Vec::new()
-            // map: HashMap::new()
         }
     }
 
     fn get(&self, s: i128) -> i128 {
-        // match self.map.get(&s) {
-        //     Some(v) => v.to_owned(),
-        //     None => s,
-        // }
 
         let mut range_with_value: Option<MappedRange> = None;
         for range in &self.mapped_ranges {
@@ -56,6 +36,81 @@ impl ElfMap {
             None => s
         }
     }
+
+    fn get_from_range(&self, value_range: ValueRange) -> Vec<ValueRange> {
+        let mut temp_range = value_range.clone();
+
+        let mut mapped_values: Vec<ValueRange> = Vec::new();
+        
+        for mapped_range in &self.mapped_ranges {
+            // Mapped ranges should be ordered by source_start, so if this is true then the values should be mapped 1 to 1.
+            if temp_range.stop() < mapped_range.source_start {
+                mapped_values.push(temp_range);
+                break;
+            }
+
+            let start_in_range = temp_range.start >= mapped_range.source_start && temp_range.start <= mapped_range.source_stop();
+            let stop_in_range = temp_range.stop() >= mapped_range.source_start && temp_range.stop() <= mapped_range.source_stop();
+
+            // Start of given range start falls within mapped range.
+            if start_in_range {
+                // Stop of given range falls within mapped range aswell.
+                if stop_in_range {
+                    mapped_values.push(
+                        ValueRange { 
+                            start: mapped_range.get_mapped_value(temp_range.start),
+                            length: temp_range.length
+                        }
+                    );
+                    break;
+                // Stop of given range falls outside of mapped range.
+                } else {
+                    mapped_values.push( 
+                        ValueRange {
+                            start: mapped_range.get_mapped_value(temp_range.start), 
+                            length: mapped_range.source_start - temp_range.start 
+                        }
+                    );
+                    // Create new range with values that were outside of the current mapped range but might fall within the next range.
+                    temp_range = ValueRange{
+                        start: mapped_range.source_stop() + 1,
+                        length: (mapped_range.source_stop() + 1) - temp_range.start}
+                }
+            } else if stop_in_range {
+                let unmapped_length = mapped_range.source_start - temp_range.start;
+                // Push unmapped part of the range.
+                mapped_values.push(
+                    ValueRange{
+                        start: temp_range.start,
+                        length: unmapped_length
+                    }
+                );
+                // Push mapped part of the range.
+                mapped_values.push(
+                    ValueRange{
+                        start: mapped_range.dest_start,
+                        length: temp_range.length - unmapped_length
+                    }
+                );
+                break;
+            } else if temp_range.start < mapped_range.source_start && temp_range.stop() > mapped_range.source_stop() {
+                panic!(":/")
+            }
+        }
+        if mapped_values.is_empty() {
+            mapped_values.push(value_range)
+        }
+        mapped_values
+    }
+
+    fn get_from_many_ranges(&self, ranges: Vec<ValueRange>) -> Vec<ValueRange> {
+        let mut results = Vec::new();
+        for r in ranges {
+            results.extend(self.get_from_range(r))
+        }
+        results
+    }
+
 }
 
 fn parse_seed_line(seed_line: &str) -> Vec<i128> {
@@ -93,6 +148,8 @@ fn parse_almanac (mut lines: Lines) -> HashMap<String, ElfMap> {
         if line.is_empty() {
 
         } else if c[0].is_alphabetic() {
+            // Sort ranges for part get_from_range.
+            cur_map.mapped_ranges.sort_by_key(|m| m.source_start);
             almanac.insert(cur_map.source.to_owned(), cur_map);
             cur_map = parse_map_header_line(line);
         } else if  c[0].is_numeric() {
@@ -128,58 +185,56 @@ fn main() {
     
     let seed_line = lines.next().unwrap();
     let seed_numbers = parse_seed_line(seed_line);
-
-    // Code for part 2;
-    let mut part_2_numbers: Vec<i128> = Vec::new();
-    for i in (0..seed_numbers.len()).step_by(2) {
-        let start = seed_numbers[i];
-        let len = seed_numbers[i+1];
-        part_2_numbers.extend(start..start+len)
-    }
-    let seed_numbers = part_2_numbers;
-
     let almanac = parse_almanac(lines);
 
-    let mut lowest_val: Option<i128> = None;
+    let seed_map = almanac.get("seed").unwrap();
+    let soil_map = almanac.get("soil").unwrap();
+    let fertilizer_map = almanac.get("fertilizer").unwrap();
+    let water_map = almanac.get("water").unwrap();
+    let light_map = almanac.get("light").unwrap();
+    let temperature_map = almanac.get("temperature").unwrap();
+    let humidity_map = almanac.get("humidity").unwrap();
 
-    for num in seed_numbers {
-        // let mut cur_map = match almanac.get("seed") {
-        //     Some(v) => v,
-        //     None => panic!("Unable to locate 'seed' in almanac for number {num}")
-        // };
-        // // let mut cur_val = cur_map.get(num);
-        // while true {
-        //     cur_map = match almanac.get(&cur_map.dest){
-        //         Some(v) => v,
-        //         None => panic!("Unable to locate '{}' in almanac for number {num}", cur_map.dest)
-        //     };
-        //     cur_val = cur_map.get(cur_val);
-        //     if cur_map.dest == "location" {
-        //         break;
-        //     }
-        // }
-        
+    // Code for part 1.
+    let mut lowest_val_part_1: Option<i128> = None;
+    for num in seed_numbers.clone() {        
         // Hardcoded for sanity.
-        let soil = almanac.get("seed").unwrap().get(num);
-        let fert = almanac.get("soil").unwrap().get(soil);
-        let water = almanac.get("fertilizer").unwrap().get(fert);
-        let light = almanac.get("water").unwrap().get(water);
-        let temp = almanac.get("light").unwrap().get(light);
-        let humid = almanac.get("temperature").unwrap().get(temp);
-        let location = almanac.get("humidity").unwrap().get(humid);
+        let soil = seed_map.get(num);
+        let fert = soil_map.get(soil);
+        let water = fertilizer_map.get(fert);
+        let light = water_map.get(water);
+        let temp = light_map.get(light);
+        let humid = temperature_map.get(temp);
+        let location = humidity_map.get(humid);
 
         let cur_val = location;
-        match lowest_val {
-            None => lowest_val = Some(cur_val),
+        match lowest_val_part_1 {
+            None => lowest_val_part_1 = Some(cur_val),
             Some(v) => {
                 if cur_val < v {
-                    lowest_val = Some(cur_val)
+                    lowest_val_part_1 = Some(cur_val)
                 }
             }
         }
-
     }
+    println!("Lowest location number for initial seeds (Part 1): {}", lowest_val_part_1.unwrap());
 
-    
-    println!("Lowest location number for initial seeds: {}", lowest_val.unwrap())
+    // Code for part 2;
+    let mut part_2_numbers: Vec<ValueRange> = Vec::new();
+    for i in (0..seed_numbers.len()).step_by(2) {
+        let start = seed_numbers[i];
+        let len = seed_numbers[i+1];
+        part_2_numbers.push(ValueRange { start: start, length: len })
+    }
+    // part_2_numbers = vec![ValueRange{start: 45, length: 10}];
+    for value_range in part_2_numbers {
+        let soil_ranges = seed_map.get_from_range(value_range);
+        let fert_ranges = soil_map.get_from_many_ranges(soil_ranges);
+        let water_ranges = fertilizer_map.get_from_many_ranges(fert_ranges);
+        let light_ranges = water_map.get_from_many_ranges(water_ranges);
+        let temp_ranges = light_map.get_from_many_ranges(light_ranges);
+        let humid_ranges = temperature_map.get_from_many_ranges(temp_ranges);
+        let location_ranges = humidity_map.get_from_many_ranges(humid_ranges);
+        println!("{:?}", location_ranges)
+    }
 }
