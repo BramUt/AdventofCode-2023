@@ -38,31 +38,37 @@ impl ElfMap {
     }
 
     fn get_from_range(&self, value_range: ValueRange) -> Vec<ValueRange> {
-        let mut temp_range = value_range.clone();
+        let mut temp_range_option = Some(value_range.clone());
 
         let mut mapped_values: Vec<ValueRange> = Vec::new();
         
         for mapped_range in &self.mapped_ranges {
+            if temp_range_option.is_none() {
+                break;
+            }
+            let temp_range = temp_range_option.clone().expect("Loop should have stopped.");
+
             // Mapped ranges should be ordered by source_start, so if this is true then the values should be mapped 1 to 1.
             if temp_range.stop() < mapped_range.source_start {
                 mapped_values.push(temp_range);
+                temp_range_option = None;
                 break;
             }
 
             let start_in_range = temp_range.start >= mapped_range.source_start && temp_range.start <= mapped_range.source_stop();
             let stop_in_range = temp_range.stop() >= mapped_range.source_start && temp_range.stop() <= mapped_range.source_stop();
 
-            if start_in_range { // Full overlap.
-
-                if stop_in_range {
+            if start_in_range { 
+                if stop_in_range { // Full overlap.
                     mapped_values.push(
                         ValueRange { 
                             start: mapped_range.get_mapped_value(temp_range.start),
                             length: temp_range.length
                         }
                     );
+                    temp_range_option = None;
                     break;
-                } else { // Head to tail overlap.
+                } else { // Tail to head overlap.
                     // Create range with value that fall within this mapped range.
                     mapped_values.push(
                         ValueRange {
@@ -71,11 +77,12 @@ impl ElfMap {
                         }
                     );
                     // Create new range with values that were outside of the current mapped range but might fall within the next range.
-                    temp_range = ValueRange{
+                    temp_range_option = Some(ValueRange{
                         start: mapped_range.source_stop() + 1,
-                        length: (mapped_range.source_stop() + 1) - temp_range.start}
+                        length: (mapped_range.source_stop() + 1) - temp_range.start
+                    })
                 }
-            } else if stop_in_range { // Tail to head overlap.
+            } else if stop_in_range { // Head to tail overlap.
                 let unmapped_length = mapped_range.source_start - temp_range.start;
                 // Push unmapped part of the range.
                 mapped_values.push(
@@ -91,6 +98,7 @@ impl ElfMap {
                         length: temp_range.length - unmapped_length
                     }
                 );
+                temp_range_option = None;
                 break;
             } else if temp_range.start < mapped_range.source_start && temp_range.stop() > mapped_range.source_stop() {
                 // Make sure there are no value ranges that fully eclipse the mapped range.
@@ -99,6 +107,8 @@ impl ElfMap {
         }
         if mapped_values.is_empty() {
             mapped_values.push(value_range)
+        } else if temp_range_option.is_some() {
+            mapped_values.push(temp_range_option.unwrap())
         }
         mapped_values
     }
@@ -173,8 +183,9 @@ fn parse_almanac (mut lines: Lines) -> HashMap<String, ElfMap> {
 fn main() {
     // let args: Vec<String> = env::args().collect();
     // let file_name = &args[1];
-    let file_name = "sampledata.txt";
+    // let file_name = "sampledata.txt";
     // let file_name = "day5_input.txt";
+    let file_name = "testset4.txt";
 
     let file_content = match fs::read_to_string(file_name) {
         Ok(content) => content,
