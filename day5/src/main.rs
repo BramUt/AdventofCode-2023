@@ -52,9 +52,8 @@ impl ElfMap {
             let start_in_range = temp_range.start >= mapped_range.source_start && temp_range.start <= mapped_range.source_stop();
             let stop_in_range = temp_range.stop() >= mapped_range.source_start && temp_range.stop() <= mapped_range.source_stop();
 
-            // Start of given range start falls within mapped range.
-            if start_in_range {
-                // Stop of given range falls within mapped range aswell.
+            if start_in_range { // Full overlap.
+
                 if stop_in_range {
                     mapped_values.push(
                         ValueRange { 
@@ -63,12 +62,12 @@ impl ElfMap {
                         }
                     );
                     break;
-                // Stop of given range falls outside of mapped range.
-                } else {
-                    mapped_values.push( 
+                } else { // Head to tail overlap.
+                    // Create range with value that fall within this mapped range.
+                    mapped_values.push(
                         ValueRange {
                             start: mapped_range.get_mapped_value(temp_range.start), 
-                            length: mapped_range.source_start - temp_range.start 
+                            length: mapped_range.source_stop() - temp_range.start 
                         }
                     );
                     // Create new range with values that were outside of the current mapped range but might fall within the next range.
@@ -76,7 +75,7 @@ impl ElfMap {
                         start: mapped_range.source_stop() + 1,
                         length: (mapped_range.source_stop() + 1) - temp_range.start}
                 }
-            } else if stop_in_range {
+            } else if stop_in_range { // Tail to head overlap.
                 let unmapped_length = mapped_range.source_start - temp_range.start;
                 // Push unmapped part of the range.
                 mapped_values.push(
@@ -94,6 +93,7 @@ impl ElfMap {
                 );
                 break;
             } else if temp_range.start < mapped_range.source_start && temp_range.stop() > mapped_range.source_stop() {
+                // Make sure there are no value ranges that fully eclipse the mapped range.
                 panic!(":/")
             }
         }
@@ -173,8 +173,8 @@ fn parse_almanac (mut lines: Lines) -> HashMap<String, ElfMap> {
 fn main() {
     // let args: Vec<String> = env::args().collect();
     // let file_name = &args[1];
-    // let file_name = "sampledata.txt";
-    let file_name = "day5_input.txt";
+    let file_name = "sampledata.txt";
+    // let file_name = "day5_input.txt";
 
     let file_content = match fs::read_to_string(file_name) {
         Ok(content) => content,
@@ -226,15 +226,37 @@ fn main() {
         let len = seed_numbers[i+1];
         part_2_numbers.push(ValueRange { start: start, length: len })
     }
+
+    let mut lowest_val_part_2: Option<i128> = None;
     // part_2_numbers = vec![ValueRange{start: 45, length: 10}];
     for value_range in part_2_numbers {
+        println!("Seed range: {:?}", value_range);
         let soil_ranges = seed_map.get_from_range(value_range);
+        println!("\tSoil ranges: {:?}", soil_ranges);
         let fert_ranges = soil_map.get_from_many_ranges(soil_ranges);
+        println!("\tFert ranges: {:?}", fert_ranges);
         let water_ranges = fertilizer_map.get_from_many_ranges(fert_ranges);
+        println!("\tWater ranges: {:?}", water_ranges);
         let light_ranges = water_map.get_from_many_ranges(water_ranges);
+        println!("\tLight ranges: {:?}", light_ranges);
         let temp_ranges = light_map.get_from_many_ranges(light_ranges);
+        println!("\tTemp ranges: {:?}", temp_ranges);
         let humid_ranges = temperature_map.get_from_many_ranges(temp_ranges);
+        println!("\tHumid ranges: {:?}", humid_ranges);
         let location_ranges = humidity_map.get_from_many_ranges(humid_ranges);
-        println!("{:?}", location_ranges)
+        println!("\tLocation ranges: {:?}", location_ranges);
+        println!("{:?}", location_ranges);
+        for r in location_ranges {
+            match lowest_val_part_2 {
+                None => lowest_val_part_2 = Some(r.start),
+                Some(v) => {
+                    if r.start < v {
+                        lowest_val_part_2 = Some(r.start)
+                    }
+                }
+            }
+        }
     }
+    println!("Lowest location number for initial seeds (Part 2): {}", lowest_val_part_2.unwrap());
+    println!("!")
 }
