@@ -214,7 +214,6 @@ fn parse_map_content_line (line: &str) -> (i128, i128, i128) {
         Err(error) => panic!("Error parsing seed line numbers: {error:?}")
     };
     (numbers[0], numbers[1], numbers[2])
-
 }
 
 fn parse_almanac (mut lines: Lines) -> HashMap<String, ElfMap> {
