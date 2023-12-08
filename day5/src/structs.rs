@@ -20,7 +20,7 @@ pub struct MappedRange {
 
 impl MappedRange {
     pub fn num_in_source_range(&self, s: i128) -> bool {
-        s >= self.source_start && s < self.source_start + self.length
+        s >= self.source_start && s <= self.source_stop()
     }
 
     pub fn get_mapped_value(&self, s: i128) -> i128 {

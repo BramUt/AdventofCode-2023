@@ -48,6 +48,11 @@ impl ElfMap {
             }
             let temp_range = temp_range_option.clone().expect("Loop should have stopped.");
 
+            let t = temp_range.start;
+            if t == 866706279 {
+                println!("0!")
+            }
+
             // Mapped ranges should be ordered by source_start, so if this is true then the values should be mapped 1 to 1.
             if temp_range.stop() < mapped_range.source_start {
                 mapped_values.push(temp_range);
@@ -67,20 +72,37 @@ impl ElfMap {
                         }
                     );
                     temp_range_option = None;
+                    let t = mapped_values.last().unwrap().start;
+                    if t == 866706279 {
+                        println!("0!")
+                    }
                     break;
                 } else { // Tail to head overlap.
+                    let mapped_length = mapped_range.source_stop() - temp_range.start + 1;
                     // Create range with value that fall within this mapped range.
                     mapped_values.push(
                         ValueRange {
                             start: mapped_range.get_mapped_value(temp_range.start), 
-                            length: mapped_range.source_stop() - temp_range.start 
+                            length: mapped_length
                         }
                     );
+                    let t = mapped_values.last().unwrap().start;
+                    if t == 866706279 {
+                        println!("0!")
+                    }
+                    if mapped_range.source_stop() + 1 == 866706279 {
+                        println!("866706279")
+                    }
                     // Create new range with values that were outside of the current mapped range but might fall within the next range.
                     temp_range_option = Some(ValueRange{
                         start: mapped_range.source_stop() + 1,
-                        length: (mapped_range.source_stop() + 1) - temp_range.start
-                    })
+                        length: temp_range.length - mapped_length
+                    });
+                    let t = temp_range_option.clone().unwrap().start;
+                    if t == 866706279 {
+                        println!("{}", mapped_range.source_stop());
+                        println!("0!");
+                    }
                 }
             } else if stop_in_range { // Head to tail overlap.
                 let unmapped_length = mapped_range.source_start - temp_range.start;
@@ -91,6 +113,10 @@ impl ElfMap {
                         length: unmapped_length
                     }
                 );
+                let t = mapped_values.last().unwrap().start;
+                if t == 866706279 {
+                    println!("0!")
+                }
                 // Push mapped part of the range.
                 mapped_values.push(
                     ValueRange{
@@ -98,11 +124,57 @@ impl ElfMap {
                         length: temp_range.length - unmapped_length
                     }
                 );
+                let t = mapped_values.last().unwrap().start;
+                if t == 866706279 {
+                    println!("0!")
+                }
                 temp_range_option = None;
                 break;
             } else if temp_range.start < mapped_range.source_start && temp_range.stop() > mapped_range.source_stop() {
-                // Make sure there are no value ranges that fully eclipse the mapped range.
-                panic!(":/")
+                // Given value range fully eclipses the mapped range.
+                let unmapped_length_left = mapped_range.source_start - temp_range.start;
+                let mapped_length = mapped_range.length;
+                let unmapped_length_right = temp_range.stop() - mapped_range.source_stop();
+                let check_unmapped_length_right = temp_range.length - unmapped_length_left - mapped_length;
+                if check_unmapped_length_right != unmapped_length_right {
+                    println!("Source stop: {}", mapped_range.source_stop());
+                    println!("Temp range start: {}", temp_range.start);
+                    println!("Temp range_length: {}", temp_range.length);
+                    println!("(check = {check_unmapped_length_right})");
+                    panic!("!!!!!!!!  check_unmapped_length_right != unmapped_length_right !!!")
+                }
+                // Push unmapped part of the range.
+                mapped_values.push(
+                    ValueRange{
+                        start: temp_range.start,
+                        length: unmapped_length_left
+                    }
+                );
+                let t = mapped_values.last().unwrap().start;
+                if t == 866706279 {
+                    println!("0!")
+                }
+                // Push mapped part of the range.
+                mapped_values.push(
+                    ValueRange{
+                        start: mapped_range.dest_start,
+                        length: mapped_length
+                    }
+                );
+                let t = mapped_values.last().unwrap().start;
+                if t == 866706279 {
+                    println!("0!")
+                }
+                // Create new range with values that were outside of the current mapped range but might fall within the next range.
+                temp_range_option = Some(ValueRange{
+                    start: mapped_range.source_stop() + 1,
+                    length: unmapped_length_right
+                });
+                let t = temp_range_option.clone().unwrap().start;
+                if t == 866706279 {
+                    println!("0!")
+                }
+                println!("!")
             }
         }
         if mapped_values.is_empty() {
@@ -183,9 +255,9 @@ fn parse_almanac (mut lines: Lines) -> HashMap<String, ElfMap> {
 fn main() {
     // let args: Vec<String> = env::args().collect();
     // let file_name = &args[1];
-    // let file_name = "sampledata.txt";
+    let file_name = "sampledata.txt";
     // let file_name = "day5_input.txt";
-    let file_name = "testset4.txt";
+    // let file_name = "testset13.txt";
 
     let file_content = match fs::read_to_string(file_name) {
         Ok(content) => content,
@@ -241,7 +313,7 @@ fn main() {
     let mut lowest_val_part_2: Option<i128> = None;
     // part_2_numbers = vec![ValueRange{start: 45, length: 10}];
     for value_range in part_2_numbers {
-        println!("Seed range: {:?}", value_range);
+        println!("\n\nSeed range: {:?}", value_range);
         let soil_ranges = seed_map.get_from_range(value_range);
         println!("\tSoil ranges: {:?}", soil_ranges);
         let fert_ranges = soil_map.get_from_many_ranges(soil_ranges);
@@ -256,12 +328,12 @@ fn main() {
         println!("\tHumid ranges: {:?}", humid_ranges);
         let location_ranges = humidity_map.get_from_many_ranges(humid_ranges);
         println!("\tLocation ranges: {:?}", location_ranges);
-        println!("{:?}", location_ranges);
+        // println!("{:?}", location_ranges);
         for r in location_ranges {
             match lowest_val_part_2 {
                 None => lowest_val_part_2 = Some(r.start),
                 Some(v) => {
-                    if r.start < v {
+                    if r.start < v{
                         lowest_val_part_2 = Some(r.start)
                     }
                 }
@@ -269,5 +341,4 @@ fn main() {
         }
     }
     println!("Lowest location number for initial seeds (Part 2): {}", lowest_val_part_2.unwrap());
-    println!("!")
 }

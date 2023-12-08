@@ -1,0 +1,18 @@
+seeds: 13000000000 33000000000 23000000000 78000000000 90000000000 6000000000 98000000000 2000000000
+
+seed-to-soil map:
+85000000000 5000000000 16000000000
+30000000000 25000000000 13000000000
+13000000000 90000000000 6000000000
+
+soil-to-fertilizer map:
+
+fertilizer-to-water map:
+
+water-to-light map:
+
+light-to-temperature map:
+
+temperature-to-humidity map:
+
+humidity-to-location map:
