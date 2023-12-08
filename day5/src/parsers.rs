@@ -51,6 +51,7 @@ pub fn parse_almanac (mut lines: Lines) -> HashMap<String, ElfMap> {
             })
         }
     }
+    cur_map.mapped_ranges.sort_by_key(|m| m.source_start);
     almanac.insert(cur_map.source.to_owned(), cur_map);
     almanac
 }
