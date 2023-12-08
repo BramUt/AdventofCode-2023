@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::str::Lines;
 
-use crate::{ElfMap};
+use crate::ElfMap;
+use crate::structs::MappedRange;
 
 pub fn parse_seed_line(seed_line: &str) -> Vec<i128> {
     let (_, nums_str) = seed_line.split_once(":").unwrap();
